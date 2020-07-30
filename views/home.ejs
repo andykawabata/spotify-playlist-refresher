@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width= , initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <h1>Welcome, 
+    <%if (locals.name) { %>
+        <%= name %>
+    <% } %>
+    </h1>
+    <h2>Playlists:</h2>
+    <ul>
+        <% playlists.forEach(function(playlist){ %>
+        <li>
+            <span><%- playlist.name %></span>
+            <button onClick="refresh('<%- playlist.id %>', '<%- playlist.name %>' )">Refresh</button>
+            
+        </li>
+        <% }); %>
+    </ul>
+
+<script>
+function refresh(id, name){
+    let url = 'http://localhost:8080/refresh?id=' + id + '&name=' + name
+    fetch(url)
+    .then(res => res.json())//send back new playlist info
+    .then(json => console.log(json))
+    .catch(err => console.log(err))
+    
+}
+</script>
+</body>
+</html>
