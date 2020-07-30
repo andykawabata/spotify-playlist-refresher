@@ -1,4 +1,3 @@
-### Single Page Express App Template for Heroku Deploy
-Just some starter code for a Simple Node-Express project<br>
-Uses EJS as template engine<br>
-Download this repo and follow instructions in 'notes.txt'
+### Spotify Playlist Refresher
+Makes a copy of chosen playist where each track is replaced<br>
+with another song by the same artist<br>
