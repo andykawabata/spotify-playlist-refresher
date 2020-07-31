@@ -28,8 +28,13 @@ async function getNewAccessToken(refresh_token){
       'Content-Type':'application/x-www-form-urlencoded' 
     } 
   }
-  let response = await fetch(url, options);
-  let json = await response.json();
+  try{
+    var response = await fetch(url, options);
+    var json = await response.json();
+  }
+  catch{
+    return undefined;
+  }
   let newAccessToken = json.access_token
   console.log("got new token: " + newAccessToken)
 
@@ -73,7 +78,10 @@ app.get('/refresh', async function(req, res){
     res.redirect('/login')
   if(!access_token){//if access_token is expired
     access_token = await getNewAccessToken(refresh_token);
-    res.cookie('access_token', access_token, {expires: new Date(Date.now() + 1000*60*59)})
+    if(!access_token){ //if token  couldn't be succesfully refreshed, redo entire flow
+      res.redirect('/login')
+    }
+    res.cookie('access_token', access_token, {expires: new Date(Date.now() + 1000*60*59)})// else, add new access token to cookie
   }
 
 
@@ -83,8 +91,15 @@ app.get('/refresh', async function(req, res){
   let options = {
     headers: { 'Authorization': 'Bearer ' + access_token }
   };
-  let response = await fetch(url, options);
-  let json  = await response.json();
+  try{
+    var response = await fetch(url, options);
+    var json  = await response.json();
+    if(!response.ok)
+      throw new Error("err");
+  }
+  catch{
+    return res.status(500).send("Server Error");
+  }
   let tracks = json.tracks.items
   let artistTrackArray = []
     tracks.forEach(item => {                   //extract artist id and track id of each track
@@ -92,7 +107,10 @@ app.get('/refresh', async function(req, res){
       let trackId = item.track.id
       artistTrackArray.push({artistId: artistId, trackId: trackId})
     })
-  let newTrackList = await createNewTrackList(artistTrackArray);
+  let newTrackList = await createNewTrackList(artistTrackArray, res);
+  if(newTrackList === -1)
+    return res.status(500).send("Server Error");
+
 
 
 
@@ -111,8 +129,14 @@ app.get('/refresh', async function(req, res){
       'Content-type': 'application/json' 
     }
   };
-  response = await fetch(url, options); 
-  json = await response.json();
+  try{
+    response = await fetch(url, options); 
+    json = await response.json();
+    if(!response.ok)
+      throw new Error("err");
+  }catch{
+    return res.status(500).send("Server Error")
+  }
   let newPlaylistId = json.id;
 
 
@@ -131,8 +155,14 @@ app.get('/refresh', async function(req, res){
     },
     body: bodyString
   };
-  response = await fetch(url, options); 
-  json = await response.json();
+  try{
+    response = await fetch(url, options); 
+    json = await response.json();
+    if(!response.ok)
+      throw new Error("err");
+  }catch{
+    return res.status(500).send("Server Error")
+  }
   let newPlaylistInfo = json;
 
   //get new playlist img, tracks, length
@@ -141,8 +171,14 @@ app.get('/refresh', async function(req, res){
   options = {
     headers: { 'Authorization': 'Bearer ' + access_token }
   };
-  response = await fetch(url, options);
-  json  = await response.json();
+  try{
+    response = await fetch(url, options); 
+    json = await response.json();
+    if(!response.ok)
+      throw new Error("err");
+  }catch{
+    return res.status(500).send("Server Error")
+  }
   newPlaylistImg = json.images[0] ? json.images[0].url : ""
   tracks = json.tracks.items
 
@@ -160,26 +196,34 @@ app.get('/refresh', async function(req, res){
     return formattedTrackList;
   }
   
-  async function createNewTrackList(artistTrackArray){
+  async function createNewTrackList(artistTrackArray, res){
     let newTrackList = []
 
     for (artistTrack of artistTrackArray) {
       let artistId = artistTrack.artistId;
       let trackId = artistTrack.trackId;
-      let newTrackId = await getRandomTrack(artistId, trackId);
+      let newTrackId = await getRandomTrack(artistId, trackId, res);
+      if(newTrackId == -1)
+        return -1
       newTrackList.push(newTrackId);
     }
     return newTrackList;
   }
 
 
-  async function getRandomTrack(artistId, trackId){ //get random track from artist, making sure it's not the original track
+  async function getRandomTrack(artistId, trackId, res){ //get random track from artist, making sure it's not the original track
     var url = 'https://api.spotify.com/v1/artists/'+artistId+'/albums'
     var options = {
       headers: { 'Authorization': 'Bearer ' + access_token }
     };
-    var response = await fetch(url, options);
-    var json = await response.json();
+    try{
+      var response = await fetch(url, options);
+      var json = await response.json();
+      if(!response.ok)
+        throw new Error("err");
+    }catch{
+      return -1
+    }
     var albums = json.items;
     var randNum = getRandomInt(albums.length)
     var randAlbumId = albums[randNum].id
@@ -189,8 +233,14 @@ app.get('/refresh', async function(req, res){
     var options = {
       headers: { 'Authorization': 'Bearer ' + access_token }
     };
-    var response = await fetch(url, options);
-    var json = await response.json();
+    try{
+      response = await fetch(url, options);
+      json = await response.json();
+      if(!response.ok)
+        throw new Error("err");
+    }catch{
+      return res.status(500).send("Server Error");
+    }
     var tracks = json.items;
     var randNum = getRandomInt(tracks.length)
     var randTrackId = tracks[randNum].id
@@ -230,14 +280,16 @@ app.get('/login', function(req, res) {
 //navigate to for first time - no access token
 //navigate to again - valid access token
 //navigate to again - expired access token 
-app.get('/home', async function(req, res){ 
+app.get('/home', async function(req, res){
   let refresh_token = req.cookies.refresh_token;
   let access_token = req.cookies.access_token;
   let name = req.cookies.name;
   let userId = req.cookies.userId
-  if(!refresh_token)//access token expired or doesn't exist (better if expired access token just requested new one?)
-    res.redirect('/login');
+  if(!refresh_token){//access token expired or doesn't exist (better if expired access token just requested new one?)
+    return res.redirect('/login');
+}
   if(!access_token){
+    console.log("IF 2")
     access_token = await getNewAccessToken(refresh_token);
     res.cookie('access_token', access_token, {expires: new Date(Date.now() + 1000*60*59)})
   }
@@ -245,6 +297,7 @@ app.get('/home', async function(req, res){
   var options = {
     headers: { 'Authorization': 'Bearer ' + access_token }
   };
+
   try{
     var response = await fetch(url, options)
     var json = await response.json()
@@ -255,9 +308,10 @@ app.get('/home', async function(req, res){
       var id = playlist.id
       filteredPlaylistArray.push({name: name, id: id})
     });
-    res.render('home', {playlists: filteredPlaylistArray, name: name})
+    return res.render('home', {playlists: filteredPlaylistArray, name: name})
   }
   catch{
+    return res.status(500).end();
   }
 })
 
@@ -271,8 +325,10 @@ app.get('/home', async function(req, res){
 
 
 
-
+//if user does not accept, there will be 'error' param in query string instead of 'code'
 app.get('/callback', async (req, res) => {
+    if(req.query.error)
+      return res.send("Whoops! looks like there was a problem with your login. " )
     var code = req.query.code || null;
     console.log("CODE: " + code)
     //var state = req.query.state || null;
@@ -287,7 +343,7 @@ app.get('/callback', async (req, res) => {
     }
     
     fetch(url, options)
-    .then(response => response.json()).catch(err => res.send("err1" +err))
+    .then(response => response.json())
     .then(json => {
         var access_token = json.access_token;
         var refresh_token = json.refresh_token;
@@ -304,12 +360,23 @@ app.get('/callback', async (req, res) => {
           res.cookie('refresh_token', refresh_token)
           res.cookie('userId', userId)
           res.cookie('name', name)
-          res.redirect('/home')
+          return res.redirect('/home')
           
         })
-    }).catch(err => res.send("err2" +err))
+    }).catch(err => res.status(500).end())
 });
 
 function getRandomInt(max) {
   return Math.floor(Math.random() * Math.floor(max));
 }
+
+
+
+app.get('/logout', function(req, res){
+  res.clearCookie('access_token')
+  res.clearCookie('refresh_token')
+  res.clearCookie('name')
+  res.clearCookie('userId')
+  res.redirect('/')
+
+})

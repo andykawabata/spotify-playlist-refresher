@@ -26,7 +26,10 @@
 function refresh(id, name){
     let url = 'http://localhost:8080/refresh?id=' + id + '&name=' + name
     fetch(url)
-    .then(res => res.json())//send back new playlist info
+    .then(res => {
+        console.log("status: " + res.status)
+        res.json()
+    })//send back new playlist info
     .then(json => console.log(json))
     .catch(err => console.log(err))
     
