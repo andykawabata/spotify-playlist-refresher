@@ -92,7 +92,7 @@ function refresh(id, name){
 
     $('#loading').removeClass('hidden')
 
-    let url = 'http://localhost:8080/refresh?id=' + id + '&name=' + name
+    let url = window.location.origin +'/refresh?id=' + id + '&name=' + name
     fetch(url)
     .then(res => {
         if(!res.ok)

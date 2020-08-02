@@ -6,11 +6,14 @@ var cors = require('cors');
 var querystring = require('querystring');
 var cookieParser = require('cookie-parser');
 const { response } = require('express');
-const { get } = require('request');
 const app = express()
 app.use(cookieParser());
 app.set('view engine', 'ejs');
-app.listen(process.env.PORT || 8080, ()=>console.log("listening..."))
+let port = process.env.PORT;
+if (port == null || port == "") {
+  port = 8080;
+}
+app.listen(port);
 app.use(express.static(__dirname + '/public'));
 
 
@@ -19,30 +22,6 @@ const redirect_uri = process.env.REDIRECT_URI
 const client_secret = process.env.CLIENT_SECRET
 
 const defaultImage ='https://lh3.googleusercontent.com/proxy/Co6vin71JdxWa7TDrq2a1mu7h0-teMN4TZboKFw5maqWEYuk-H0PWSLQRU3CUXLYNNB2D6yKBL9N0RCACnAdSG6xleui-MEjfGnG11S41JYBFZFle3DVSVxzRvdTvsttStjhdg'
-
-async function getNewAccessToken(refresh_token){
-  let url = 'https://accounts.spotify.com/api/token?refresh_token='+refresh_token+'&grant_type=refresh_token'
-  let options = {
-    method: 'POST',
-    headers: { 
-      'Authorization': 'Basic ' + (new Buffer(client_id + ':' + client_secret).toString('base64')),
-      'Content-Type':'application/x-www-form-urlencoded' 
-    } 
-  }
-  try{
-    var response = await fetch(url, options);
-    var json = await response.json();
-  }
-  catch{
-    return undefined;
-  }
-  let newAccessToken = json.access_token
-  console.log("got new token: " + newAccessToken)
-
-  return newAccessToken;
-}
-
-
 
 
 app.get('/', function(req, res) {
@@ -56,6 +35,124 @@ app.get('/', function(req, res) {
 
 
 
+
+app.get('/login', function(req, res) {
+  var scopes = 'playlist-read-private playlist-modify-public playlist-modify-private';
+  res.redirect('https://accounts.spotify.com/authorize?' +
+  querystring.stringify({
+    response_type: 'code',
+    client_id: client_id,
+    scope: scopes,
+    redirect_uri: redirect_uri,
+    show_dialog: true
+  }));
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//if user does not accept, there will be 'error' param in query string instead of 'code'
+app.get('/callback', async (req, res) => {
+  if(req.query.error)
+    return res.send("Whoops! looks like there was a problem with your login. " )
+  var code = req.query.code || null;
+
+
+
+  var url = 'https://accounts.spotify.com/api/token?code='+code+'&redirect_uri='+redirect_uri+'&grant_type=authorization_code';
+  var headers = {'Authorization': 'Basic ' + (new Buffer(client_id + ':' + client_secret).toString('base64')),
+                  'Content-Type':'application/x-www-form-urlencoded'}
+  var options = { method : 'POST',
+                  headers: headers
+  }
+  
+  fetch(url, options)
+  .then(response => response.json())
+  .then(json => {
+      var access_token = json.access_token;
+      var refresh_token = json.refresh_token;
+      var url = 'https://api.spotify.com/v1/me'
+      var options = {
+        headers: { 'Authorization': 'Bearer ' + access_token }
+      };
+      fetch(url, options)
+      .then(response => response.json())
+      .then(json => {
+        var userId = json.id
+        var name = json.display_name
+        res.cookie('access_token', access_token, {expires: new Date(Date.now() + 1000*20)})
+        res.cookie('refresh_token', refresh_token)
+        res.cookie('userId', userId)
+        res.cookie('name', name)
+        return res.redirect('/home')
+        
+      })
+  }).catch(err => res.status(500).end())
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+//navigate to for first time - no access token
+//navigate to again - valid access token
+//navigate to again - expired access token 
+app.get('/home', async function(req, res){
+  let refresh_token = req.cookies.refresh_token;
+  let access_token = req.cookies.access_token;
+  let name = req.cookies.name;
+  let userId = req.cookies.userId
+  if(!refresh_token){//access token expired or doesn't exist (better if expired access token just requested new one?)
+    return res.redirect('/login');
+}
+  if(!access_token){
+    console.log("IF 2")
+    access_token = await getNewAccessToken(refresh_token);
+    res.cookie('access_token', access_token, {expires: new Date(Date.now() + 1000*60*59)})
+  }
+  let url = 'https://api.spotify.com/v1/users/'+userId+'/playlists'
+  var options = {
+    headers: { 'Authorization': 'Bearer ' + access_token }
+  };
+
+  try{
+    var response = await fetch(url, options)
+    var json = await response.json()
+    var playlistsArray  = json.items
+    console.log(playlistsArray[1].images)
+    var filteredPlaylistArray = []
+    playlistsArray.forEach(playlist => {
+      var name = playlist.name.replace(/'/g, '').replace(/"/g, '')
+      var id = playlist.id
+      var img = playlist.images[0] ? playlist.images[0].url : defaultImage
+      var numTracks = playlist.tracks.total
+      filteredPlaylistArray.push({name: name, id: id, img: img, numTracks: numTracks})
+    });
+
+    return res.render('home', {playlists: filteredPlaylistArray, name: name})
+  }
+  catch{
+    return res.status(500).end();
+  }
+})
 
 
 
@@ -254,130 +351,6 @@ app.get('/refresh', async function(req, res){
 
 
 
-
-
-
-
-
-
-
-app.get('/login', function(req, res) {
-    var scopes = 'playlist-read-private playlist-modify-public playlist-modify-private';
-    res.redirect('https://accounts.spotify.com/authorize?' +
-    querystring.stringify({
-      response_type: 'code',
-      client_id: client_id,
-      scope: scopes,
-      redirect_uri: redirect_uri,
-      show_dialog: true
-    }));
-});
-
-
-
-
-
-
-
-//navigate to for first time - no access token
-//navigate to again - valid access token
-//navigate to again - expired access token 
-app.get('/home', async function(req, res){
-  let refresh_token = req.cookies.refresh_token;
-  let access_token = req.cookies.access_token;
-  let name = req.cookies.name;
-  let userId = req.cookies.userId
-  if(!refresh_token){//access token expired or doesn't exist (better if expired access token just requested new one?)
-    return res.redirect('/login');
-}
-  if(!access_token){
-    console.log("IF 2")
-    access_token = await getNewAccessToken(refresh_token);
-    res.cookie('access_token', access_token, {expires: new Date(Date.now() + 1000*60*59)})
-  }
-  let url = 'https://api.spotify.com/v1/users/'+userId+'/playlists'
-  var options = {
-    headers: { 'Authorization': 'Bearer ' + access_token }
-  };
-
-  try{
-    var response = await fetch(url, options)
-    var json = await response.json()
-    var playlistsArray  = json.items
-    console.log(playlistsArray[1].images)
-    var filteredPlaylistArray = []
-    playlistsArray.forEach(playlist => {
-      var name = playlist.name.replace(/'/g, '').replace(/"/g, '')
-      var id = playlist.id
-      var img = playlist.images[0] ? playlist.images[0].url : defaultImage
-      var numTracks = playlist.tracks.total
-      filteredPlaylistArray.push({name: name, id: id, img: img, numTracks: numTracks})
-    });
-
-    return res.render('home', {playlists: filteredPlaylistArray, name: name})
-  }
-  catch{
-    return res.status(500).end();
-  }
-})
-
-
-
-
-
-
-
-
-
-
-
-//if user does not accept, there will be 'error' param in query string instead of 'code'
-app.get('/callback', async (req, res) => {
-    if(req.query.error)
-      return res.send("Whoops! looks like there was a problem with your login. " )
-    var code = req.query.code || null;
-    console.log("CODE: " + code)
-    //var state = req.query.state || null;
-    //var storedState = req.cookies ? req.cookies[stateKey] : null;
-
-
-    var url = 'https://accounts.spotify.com/api/token?code='+code+'&redirect_uri='+redirect_uri+'&grant_type=authorization_code';
-    var headers = {'Authorization': 'Basic ' + (new Buffer(client_id + ':' + client_secret).toString('base64')),
-                    'Content-Type':'application/x-www-form-urlencoded'}
-    var options = { method : 'POST',
-                    headers: headers
-    }
-    
-    fetch(url, options)
-    .then(response => response.json())
-    .then(json => {
-        var access_token = json.access_token;
-        var refresh_token = json.refresh_token;
-        var url = 'https://api.spotify.com/v1/me'
-        var options = {
-          headers: { 'Authorization': 'Bearer ' + access_token }
-        };
-        fetch(url, options)
-        .then(response => response.json())
-        .then(json => {
-          var userId = json.id
-          var name = json.display_name
-          res.cookie('access_token', access_token, {expires: new Date(Date.now() + 1000*20)})
-          res.cookie('refresh_token', refresh_token)
-          res.cookie('userId', userId)
-          res.cookie('name', name)
-          return res.redirect('/home')
-          
-        })
-    }).catch(err => res.status(500).end())
-});
-
-function getRandomInt(max) {
-  return Math.floor(Math.random() * Math.floor(max));
-}
-
-
-
 app.get('/logout', function(req, res){
   res.clearCookie('access_token')
   res.clearCookie('refresh_token')
@@ -386,3 +359,35 @@ app.get('/logout', function(req, res){
   res.redirect('/')
 
 })
+
+
+
+
+
+
+function getRandomInt(max) {
+  return Math.floor(Math.random() * Math.floor(max));
+}
+
+
+async function getNewAccessToken(refresh_token){
+  let url = 'https://accounts.spotify.com/api/token?refresh_token='+refresh_token+'&grant_type=refresh_token'
+  let options = {
+    method: 'POST',
+    headers: { 
+      'Authorization': 'Basic ' + (new Buffer(client_id + ':' + client_secret).toString('base64')),
+      'Content-Type':'application/x-www-form-urlencoded' 
+    } 
+  }
+  try{
+    var response = await fetch(url, options);
+    var json = await response.json();
+  }
+  catch{
+    return undefined;
+  }
+  let newAccessToken = json.access_token
+  console.log("got new token: " + newAccessToken)
+
+  return newAccessToken;
+}
