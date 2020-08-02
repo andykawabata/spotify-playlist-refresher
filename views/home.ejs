@@ -2,37 +2,128 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width= , initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/styles.css">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
+    <script
+    src="https://code.jquery.com/jquery-3.5.1.slim.js"
+    integrity="sha256-DrT5NfxfbHvMHux31Lkhxg42LY6of8TaYyK50jnxRnM="
+    crossorigin="anonymous"></script>
+  
     <title>Document</title>
 </head>
 <body>
-    <h1>Welcome, 
-    <%if (locals.name) { %>
-        <%= name %>
-    <% } %>
-    </h1>
-    <h2>Playlists:</h2>
-    <ul>
-        <% playlists.forEach(function(playlist){ %>
-        <li>
-            <span><%- playlist.name %></span>
-            <button onClick="refresh('<%- playlist.id %>', '<%- playlist.name %>' )">Refresh</button>
+    <div class="container bg-light shadow p-0 ">
+        <div class="logout"><a href="/logout">Logout</a> </div>
+        <div class="title">
+            <h4>Spotify</h4>
+            <h3>Playlist Refresher</h3>
             
-        </li>
-        <% }); %>
-    </ul>
+        </div>
+        <!--<p class="description">This app allows you to make a copy of your favorite playlist where every track is replaced with another song by the same artist. Same vibe, new songs!</p> -->
+        <div class="main bg-light">
+            <h4 id="welcome">Welcome, <small><%= name %></small></h4>
+            <p id="instructions"class="instructions" ><strong>Refresh =</strong> make a copy of playlist where every track is replaced with different song by the same artist - the original playlist is unchanged</p>
+            
+    
+    
+            
+            <div id="newPlaylist" class="hidden">
+                <div class="myBorder">
+                    <h4 class="ml-2">Your Playlist Has Been Refreshed!</h4>
+                    <div class="playlist new-playlist">
+                        <div class="left">
+                            <img class="playlist-image" id="newPlaylistImage" src="">
+                            <p class="text-dark mb-1"><small id="numTracks"></small></p>
+                        </div>
+                        <div class="right">
+                            <h5 class="playlist-title text-dark" id="playlistName"></h5>
+                            <button  class="btn btn-success text-dark shadow font-weight-bold"><a class="text-dark" id ="url">Open in Spotify</a></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
+            <h5 id="choose">Choose Playlist to Refresh: </h5>
+    
+    
+            
+            <div id="playlistContainer">
+                <% playlists.forEach(function(playlist){ %>
+
+                    <div class="playlist bg-dark">
+                        <div class="left">
+                            <img class="playlist-image" src="<%- playlist.img %>">
+                            <p class="text-light mb-1"><small><%- playlist.numTracks %> Tracks</small></p>
+                        </div>
+                        <div class="right">
+                            <h4 class="playlist-title text-light"><%- playlist.name %></h4>
+                            <button  class="btn refresh-btn shadow font-weight-bold" onClick="refresh('<%- playlist.id %>', '<%- playlist.name %>' )">Refresh</button>
+                        </div>
+                    </div>
+                <% }); %>
+            </div>
+    
+    
+            <div id="loading" class="message hidden">
+                <p>Loading...</p>
+                <br>
+                <p>your playlist is being refreshed</p>
+                <p>this may take up to a minute</p>
+                <br>
+                <p>please wait!</p>
+            </div>
+            <div id="error" class="message hidden">
+                <p>An Error Has Occured :(</p>
+                <br>
+                <p>If the problem persists, logout and log back in</p>
+            </div>
+        </div>
+        
+    </div>
+   
 <script>
 function refresh(id, name){
+
+    $('#instructions').addClass("hidden");
+    $('#newPlaylist').addClass("hidden");
+    $('#choose').addClass("hidden");
+    $('#playlistContainer').addClass("hidden");
+
+    $('#loading').removeClass('hidden')
+
     let url = 'http://localhost:8080/refresh?id=' + id + '&name=' + name
     fetch(url)
     .then(res => {
-        console.log("status: " + res.status)
-        res.json()
+        if(!res.ok)
+            throw new Error("Bad Response")
+        return res.json()
     })//send back new playlist info
-    .then(json => console.log(json))
-    .catch(err => console.log(err))
-    
+    .then(json => {
+
+        let playlistImage = json.img;
+        let playlistName = json.name;
+        let numTracks = json.numTracks;
+        let url = json.url;
+
+        displayNewPlaylist(playlistImage, playlistName, numTracks, url);
+        $('#loading').addClass('hidden')
+        $('#newPlaylist').removeClass("hidden");
+        $('#instructions').removeClass("hidden");
+        $('#choose').removeClass("hidden");
+        $('#playlistContainer').removeClass("hidden");
+    })
+    .catch(err => {
+        $('#loading').addClass('hidden')
+        $('#error').removeClass('hidden')
+    })
+
+    function displayNewPlaylist(playlistImage, playlistName, numTracks, url){
+        $('#newPlaylistImage').attr("src", playlistImage)
+        $('#numTracks').html(numTracks + " Tracks")
+        $('#url').attr("href", url)
+        $('#playlistName').html(playlistName)
+    }
 }
 </script>
 </body>

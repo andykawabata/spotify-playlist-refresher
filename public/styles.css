@@ -1,0 +1,95 @@
+html{
+    height: 100%;
+}
+body{
+    height: 100%;
+}
+a:hover{
+    text-decoration: none !important;
+}
+.container{
+    min-height: 100%;
+}
+.main{
+    padding: 0 15px
+}
+.title{
+    background: lightgreen;
+    padding: 10px 0 3px 15px;
+    margin: 0 0 11px 0
+}
+.instructions{
+    font-size: .8em;
+    margin: 14px 0 14px 0;
+}
+.description{
+    font-size: .9em;
+    margin-top: 5px;
+}
+.truncate {
+    width: 250px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.logout{
+    float: right;
+    margin: 5px 10px;
+}
+
+
+
+
+.playlist{
+    margin: 10px 0;
+    display: flex;
+    text-align: center;
+}
+.playlist-image{
+    height: 100px;
+    margin: 5px 5px 0 5px;
+
+}
+.right{
+    flex-grow: 1;
+}
+.playlist-title {
+    padding: 10px 5px;
+    font-size: 1.3em;
+}
+.refresh-btn{
+    background: lightgreen !important;
+    width: 200px;
+    margin-bottom: 12px;
+}
+.message{
+    height: 400px;
+    text-align: center;
+}
+.hidden{
+    display: none;
+}
+
+.signinButton{
+    text-align: center;
+}
+.signinButton button{
+    background: lightgreen;
+    width: 180px;
+    font-weight: bold;
+}
+.new-playlist{
+    background: turquoise;
+    margin-bottom: 0 !important;
+}
+.myBorder{
+    background: lightgray;
+    border: 1px solid black !important;
+    margin-bottom: 5px;
+}
+@media only screen and (min-width: 600px) {
+    .right {
+        text-align: left;
+        margin-left: 10px
+    }
+}

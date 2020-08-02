@@ -11,13 +11,14 @@ const app = express()
 app.use(cookieParser());
 app.set('view engine', 'ejs');
 app.listen(process.env.PORT || 8080, ()=>console.log("listening..."))
-
+app.use(express.static(__dirname + '/public'));
 
 
 const client_id = process.env.CLIENT_ID
 const redirect_uri = process.env.REDIRECT_URI
 const client_secret = process.env.CLIENT_SECRET
 
+const defaultImage ='https://lh3.googleusercontent.com/proxy/Co6vin71JdxWa7TDrq2a1mu7h0-teMN4TZboKFw5maqWEYuk-H0PWSLQRU3CUXLYNNB2D6yKBL9N0RCACnAdSG6xleui-MEjfGnG11S41JYBFZFle3DVSVxzRvdTvsttStjhdg'
 
 async function getNewAccessToken(refresh_token){
   let url = 'https://accounts.spotify.com/api/token?refresh_token='+refresh_token+'&grant_type=refresh_token'
@@ -48,7 +49,7 @@ app.get('/', function(req, res) {
   let refresh_token = req.cookies.refresh_token;
   let access_token = req.cookies.access_token;
   if(!(refresh_token && access_token))
-    res.redirect('/login');
+    res.render('landing');
   else
     res.redirect('/home');
 });
@@ -164,10 +165,10 @@ app.get('/refresh', async function(req, res){
     return res.status(500).send("Server Error")
   }
   let newPlaylistInfo = json;
-
+  
   //get new playlist img, tracks, length
-  params = "?fields=tracks.items(track(name,href,artists,album(name,href))),images,name"
-  url = 'https://api.spotify.com/v1/playlists/' + playlistId + params
+
+  url = 'https://api.spotify.com/v1/playlists/' + newPlaylistId 
   options = {
     headers: { 'Authorization': 'Bearer ' + access_token }
   };
@@ -180,10 +181,11 @@ app.get('/refresh', async function(req, res){
     return res.status(500).send("Server Error")
   }
   newPlaylistImg = json.images[0] ? json.images[0].url : ""
-  tracks = json.tracks.items
+  numTracks = json.tracks.total
+  url = json.external_urls.spotify ? json.external_urls.spotify : "no link"
 
-  res.send({img: newPlaylistImg, name: newPlaylistName, tracks: tracks});
-
+  res.json({img: newPlaylistImg, name: newPlaylistName, numTracks: numTracks, url: url});
+ 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
   
@@ -302,12 +304,16 @@ app.get('/home', async function(req, res){
     var response = await fetch(url, options)
     var json = await response.json()
     var playlistsArray  = json.items
+    console.log(playlistsArray[1].images)
     var filteredPlaylistArray = []
     playlistsArray.forEach(playlist => {
-      var name = playlist.name
+      var name = playlist.name.replace(/'/g, '').replace(/"/g, '')
       var id = playlist.id
-      filteredPlaylistArray.push({name: name, id: id})
+      var img = playlist.images[0] ? playlist.images[0].url : defaultImage
+      var numTracks = playlist.tracks.total
+      filteredPlaylistArray.push({name: name, id: id, img: img, numTracks: numTracks})
     });
+
     return res.render('home', {playlists: filteredPlaylistArray, name: name})
   }
   catch{
