@@ -1,13 +1,13 @@
 require('dotenv').config()
-//const fetch = require("node-fetch");
+const fetch = require("node-fetch");
 const express = require('express')
-//var cors = require('cors');
-//ar querystring = require('querystring');
-//var cookieParser = require('cookie-parser');
-//const { response } = require('express');
+var cors = require('cors');
+var querystring = require('querystring');
+var cookieParser = require('cookie-parser');
+const { response } = require('express');
 const app = express()
-//app.use(cookieParser());
-//app.set('view engine', 'ejs');
+app.use(cookieParser());
+app.set('view engine', 'ejs');
 let port = process.env.PORT;
 if (port == null || port == "") {
   port = 8080;
@@ -15,13 +15,13 @@ if (port == null || port == "") {
 app.listen(port);
 app.use(express.static(__dirname + '/public'));
 
-/*
+
 const client_id = process.env.CLIENT_ID
 const redirect_uri = process.env.REDIRECT_URI
 const client_secret = process.env.CLIENT_SECRET
 
 const defaultImage ='https://lh3.googleusercontent.com/proxy/Co6vin71JdxWa7TDrq2a1mu7h0-teMN4TZboKFw5maqWEYuk-H0PWSLQRU3CUXLYNNB2D6yKBL9N0RCACnAdSG6xleui-MEjfGnG11S41JYBFZFle3DVSVxzRvdTvsttStjhdg'
-*/
+
 app.get('/', function(req, res) {
   res.send("hello");
 });
