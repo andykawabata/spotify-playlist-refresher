@@ -23,7 +23,13 @@ const client_secret = process.env.CLIENT_SECRET
 
 const defaultImage ='https://lh3.googleusercontent.com/proxy/Co6vin71JdxWa7TDrq2a1mu7h0-teMN4TZboKFw5maqWEYuk-H0PWSLQRU3CUXLYNNB2D6yKBL9N0RCACnAdSG6xleui-MEjfGnG11S41JYBFZFle3DVSVxzRvdTvsttStjhdg'
 
+app.get('/', function(req, res) {
+  res.send("hello");
+});
 
+
+
+/*
 app.get('/', function(req, res) {
   let refresh_token = req.cookies.refresh_token;
   let access_token = req.cookies.access_token;
@@ -391,3 +397,5 @@ async function getNewAccessToken(refresh_token){
 
   return newAccessToken;
 }
+
+*/
