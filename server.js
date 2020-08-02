@@ -28,7 +28,7 @@ app.get('/', function(req, res) {
 
 
 
-/*
+
 app.get('/', function(req, res) {
   let refresh_token = req.cookies.refresh_token;
   let access_token = req.cookies.access_token;
@@ -396,5 +396,3 @@ async function getNewAccessToken(refresh_token){
 
   return newAccessToken;
 }
-
-*/
