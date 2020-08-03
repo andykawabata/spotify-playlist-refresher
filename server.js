@@ -89,10 +89,10 @@ app.get('/callback', async (req, res) => {
       .then(json => {
         var userId = json.id
         var name = json.display_name
-        res.cookie('access_token', access_token, {expires: new Date(Date.now() + 1000*20)})
-        res.cookie('refresh_token', refresh_token)
-        res.cookie('userId', userId)
-        res.cookie('name', name)
+        res.cookie('access_token', access_token, {expires: new Date(Date.now() + 1000*20),  httpOnly: true })
+        res.cookie('refresh_token', refresh_token, { httpOnly: true })
+        res.cookie('userId', userId, { httpOnly: true })
+        res.cookie('name', name, { httpOnly: true })
         return res.redirect('/home')
         
       })
@@ -125,7 +125,7 @@ app.get('/home', async function(req, res){
   if(!access_token){
     console.log("IF 2")
     access_token = await getNewAccessToken(refresh_token);
-    res.cookie('access_token', access_token, {expires: new Date(Date.now() + 1000*60*59)})
+    res.cookie('access_token', access_token, {expires: new Date(Date.now() + 1000*60*59),  httpOnly: true })
   }
   let url = 'https://api.spotify.com/v1/users/'+userId+'/playlists'
   var options = {
@@ -136,7 +136,6 @@ app.get('/home', async function(req, res){
     var response = await fetch(url, options)
     var json = await response.json()
     var playlistsArray  = json.items
-    console.log(playlistsArray[1].images)
     var filteredPlaylistArray = []
     playlistsArray.forEach(playlist => {
       var name = playlist.name.replace(/'/g, '').replace(/"/g, '')
@@ -178,7 +177,7 @@ app.get('/refresh', async function(req, res){
     if(!access_token){ //if token  couldn't be succesfully refreshed, redo entire flow
       res.redirect('/login')
     }
-    res.cookie('access_token', access_token, {expires: new Date(Date.now() + 1000*60*59)})// else, add new access token to cookie
+    res.cookie('access_token', access_token, {expires: new Date(Date.now() + 1000*60*59),  httpOnly: true })// else, add new access token to cookie
   }
 
 
@@ -386,7 +385,6 @@ async function getNewAccessToken(refresh_token){
     return undefined;
   }
   let newAccessToken = json.access_token
-  console.log("got new token: " + newAccessToken)
 
   return newAccessToken;
 }

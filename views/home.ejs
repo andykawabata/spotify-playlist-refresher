@@ -38,7 +38,7 @@
                         </div>
                         <div class="right">
                             <h5 class="playlist-title text-dark" id="playlistName"></h5>
-                            <button  class="btn btn-success text-dark shadow font-weight-bold"><a class="text-dark" id ="url">Open in Spotify</a></button>
+                            <button  class="mb-2 btn btn-success text-dark shadow font-weight-bold"><a class="text-dark" id ="url">Open in Spotify</a></button>
                         </div>
                     </div>
                 </div>
@@ -49,6 +49,9 @@
     
             
             <div id="playlistContainer">
+                <div id="previouslyRefreshed">
+
+                </div>
                 <% playlists.forEach(function(playlist){ %>
 
                     <div class="playlist bg-dark">
@@ -85,17 +88,25 @@
     </div>
    
 <script>
+    
+let playlistImage;
+let playlistName;
+let numTracks;
+let url;
+
 function refresh(id, name){
 
     $('#instructions').addClass("hidden");
     $('#newPlaylist').addClass("hidden");
     $('#choose').addClass("hidden");
     $('#playlistContainer').addClass("hidden");
-
     $('#loading').removeClass('hidden')
 
-    let url = window.location.origin +'/refresh?id=' + id + '&name=' + name
-    fetch(url)
+    if(playlistImage && playlistName && numTracks && url)
+        pushPrevPlaylistIntoContainer(playlistImage, playlistName, numTracks, url);
+
+    let originUrl = window.location.origin +'/refresh?id=' + id + '&name=' + name
+    fetch(originUrl)
     .then(res => {
         if(!res.ok)
             throw new Error("Bad Response")
@@ -103,10 +114,10 @@ function refresh(id, name){
     })//send back new playlist info
     .then(json => {
 
-        let playlistImage = json.img;
-        let playlistName = json.name;
-        let numTracks = json.numTracks;
-        let url = json.url;
+        playlistImage = json.img;
+        playlistName = json.name;
+        numTracks = json.numTracks;
+        url = json.url;
 
         displayNewPlaylist(playlistImage, playlistName, numTracks, url);
         $('#loading').addClass('hidden')
@@ -125,6 +136,22 @@ function refresh(id, name){
         $('#numTracks').html(numTracks + " Tracks")
         $('#url').attr("href", url)
         $('#playlistName').html(playlistName)
+    }
+
+    function pushPrevPlaylistIntoContainer(playlistImage, playlistName, numTracks, url){
+        let content = `
+                    <div class="playlist bg-dark">
+                        <div class="left">
+                            <img class="playlist-image" src="` +playlistImage +`">
+                            <p class="text-light mb-1"><small>`+ numTracks +` Tracks</small></p>
+                        </div>
+                        <div class="right">
+                            <h4 class="playlist-title text-light">` + playlistName + `</h4>
+                            <button  class="btn btn-success text-dark shadow font-weight-bold"><a class="text-dark" href="`+url+`">Open in Spotify</a></button>
+                        </div>
+                    </div>`
+        
+        $('#previouslyRefreshed').prepend(content);
     }
 }
 </script>
